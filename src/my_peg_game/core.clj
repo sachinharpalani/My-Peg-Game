@@ -13,9 +13,9 @@
   (let [inp (read-line)]
     (println inp)))
 
-(defn make-map []
+(defn make-board []
   "Static map of length 5"
-  {1  {:pegged true, :connections {6 3, 4 2}},
+  {1  {:pegged false, :connections {6 3, 4 2}},
    2  {:pegged true, :connections {9 5, 7 4}},
    3  {:pegged true, :connections {10 6, 8 5}},
    4  {:pegged true, :connections {13 8, 11 7, 6 5, 1 2}},
@@ -31,13 +31,13 @@
    14 {:pegged true, :connections {12 13, 5 9}},
    15 {:pegged true, :connections {13 14, 6 10}}})
 
-(defn get-peg-value [inp map out]
+(defn get-peg-value [inp board out]
   "Returns 1 if pegged else returns - for the given input"
   (if (empty? inp)
     out
-    (recur (rest inp) map (conj out (if (= (get-in map [(first inp) :pegged]))
+    (recur (rest inp) board (conj out (if (= (get-in board [(first inp) :pegged]) true)
                                       1
-                                      -)))))
+                                      0)))))
 
 
 (defn get-valid-pegs [inp]
@@ -77,8 +77,8 @@
   (let [drop-value (nth (conj (take 5 tri) 0) (dec inp))]
     (take inp (drop drop-value (range 1 16)))))
 
-(defn convert-zip-format
-  "Converts to vector of strings"
+#_(defn convert-zip-format-1
+  "Converts to vector of strings EG: '(4 5 6) -> [\"4\" \"5\" \"6\"] "
   ([inp]
    (convert-zip-format inp []))
   ([inp out]
@@ -86,16 +86,99 @@
      out
      (recur (rest inp) (conj out (str (first inp)))))))
 
-(defn comb-element-peg [inp map]
+(defn convert-zip-format [inp]
+  (vec inp))
+
+(defn comb-element-peg [inp board]
+  ""
   (let [a (get-element inp)
-        b (get-peg-value a map [])]
+        b (get-peg-value a board [])]
     (zipmap (convert-zip-format (convert-to-alph  a)) (convert-zip-format b))))
 
-(defn print-map [map]
-  (loop [m map
-         cl 1
+(defn print-map [board]
+  "Prints the board"
+  (loop [cl 1
          ce 1
          ct 4]
     (when (<= cl 5)
-      (println (str (apply str (repeat ct "\t")) (comb-element-peg ce map)))
-      (recur m (inc cl) (inc ce) (dec ct) ))))
+      (println (str (apply str (repeat ct "\t")) (comb-element-peg ce board)))
+      (recur (inc cl) (inc ce) (dec ct) ))))
+
+
+;; RADHA CODE
+
+(defn char-as-str [x] (filter (comp not empty?) (clojure.string/split x #" ")))
+
+(defn convert-int [str] (- (int (let [gb (.getBytes str)] (char (first gb)))) 96))
+
+(take-input (make-map))                         ;taking move
+;(char-as-str "a   b");is peg
+
+(defn peg? [board pos] (if (get-in board [pos :pegged])
+                        true
+                        false));valid move;remove peg
+
+(defn remove-peg [board pos]
+ (assoc-in board
+           [pos :pegged]
+           false))
+                                        ;add peg
+
+(defn add-peg [board pos]
+ (assoc-in board
+           [pos :pegged]
+           true))
+                                        ;move peg
+
+(defn neigh-peg [board pos dest]
+  (second (first (filter #(= dest (first %))
+                         (get-in board
+                                 [pos :connections])))))
+
+
+(defn move-peg [board pos dest]
+ (let [neigh (neigh-peg board pos dest)]
+   ;(println neigh)
+   (add-peg (remove-peg (remove-peg board
+                                neigh)
+                    pos)
+            dest)))
+
+                                        ;is valid
+
+(defn valid-move? [board pos dest]
+ (let [neigh (neigh-peg board pos dest)]
+   (and (peg? board pos)
+        (peg? board neigh)
+        (not (peg? board dest)))))
+
+(defn take-input [board]
+  (println "enter the source and destination points")
+  (let [lis (map convert-int  (char-as-str (read-line)))
+        fir (first lis)
+        sec (second lis)]
+    (if (valid-move? board fir sec)
+      (move-peg board fir sec)
+      (do println "invalid move "
+          board))))
+
+
+;;HItesh COde
+(comment
+  (defn checkres [board]
+    (let [truemap (filter #(true? (:pegged (second %))) (vec board))]
+      (if (= 1 (count truemap))
+        (println "WINNER")
+
+        (if (movava truemap)
+          (println "U LOST")
+          #_(println "U LOST"))) ))
+
+  (defn ispeg [board pos]
+    (:pegged (second (first (filter #(= pos (first %)) board)))))
+
+  (defn movava [board]
+    #_(let [newboard (filter #(true? (:pegged (second %))) (vec board))])
+    (and
+     (false? (ispeg board (first (first (:connections (second (first board)))))))
+     (true? (ispeg board (second (first (:connections (second (first board))))))))))
